@@ -16,7 +16,7 @@ module PiecewiseLDR
     include("second_moment.jl")
     include("pwldr.jl")
     include("segments/opt_segments.jl")
-    include("segments/number_segments_models/vector_representation.jl")
-    include("segments/number_segments_models/regression.jl")
+    include("segments/bp_gain_models/vector_representation.jl")
+    include("segments/bp_gain_models/regression.jl")
 
 end #End module

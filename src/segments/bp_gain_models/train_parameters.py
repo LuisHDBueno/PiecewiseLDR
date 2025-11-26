@@ -11,7 +11,8 @@ def add_metrics_to_df(df_rm, df_md, df_pwldr):
     new_lines = pd.merge(df1_unique, df_rm_filter, on='idx_p')
 
     new_lines['nb'] = 0
-    new_lines['time'] = 0
+    new_lines['time_uni'] = 0
+    new_lines['time_opt'] = 0
     new_lines['value_uni'] = new_lines['value']
     new_lines['value_opt'] = new_lines['value']
 
@@ -123,11 +124,8 @@ def open_data():
     return df_final
 
 def fit_regression(df:pd.DataFrame):
-    X = df[[f'v{i}' for i in range(1, 16)] + ['nb']]
+    X = df[[f'v{i}' for i in range(1, 16)]]
     y = df['gain']
-
-    for i in range(1, 16):
-        X[f'v{i}_nb'] = X[f'v{i}'] * X['nb']
 
     variances = X.var()
     valid_columns = variances[variances > 0].index
@@ -136,11 +134,8 @@ def fit_regression(df:pd.DataFrame):
     coef, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
 
     calculated_coefs = pd.Series(coef, index=valid_columns)
-
     all_v = [f'v{i}' for i in range(1, 16)]
-    all_v_nb = [f'v{i}_nb' for i in range(1, 16)]
-    full_feature_list = all_v + ['nb'] + all_v_nb
-    full_coefs = calculated_coefs.reindex(full_feature_list, fill_value=0)
+    full_coefs = calculated_coefs.reindex(all_v, fill_value=0)
 
     return full_coefs
 
@@ -156,11 +151,8 @@ def train_model():
     coef_series = fit_regression(train_df)
 
     # Create columns
-    X_test = test_df[[f'v{i}' for i in range(1, 16)] + ['nb']].copy()
+    X_test = test_df[[f'v{i}' for i in range(1, 16)]].copy()
     y_test = test_df['gain']
-    
-    for i in range(1, 16):
-        X_test[f'v{i}_nb'] = X_test[f'v{i}'] * X_test['nb']
         
     X_test = X_test[coef_series.index]
     predictions = X_test @ coef_series
@@ -171,6 +163,6 @@ def train_model():
     print(f"R² (R-squared): {r2:.4f}")
     print(f"RMSE (Root Mean Squared Error): {rmse:.4f}")
 
-    coef_series.to_json('src/segments/number_segments_models/params.json', orient='values')
+    coef_series.to_json('src/segments/bp_gain_models/params.json', orient='values')
 
 train_model()
