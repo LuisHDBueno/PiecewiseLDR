@@ -36,13 +36,18 @@ optimize!(ldr)
 @show objective_value(ldr)
 
 model = PiecewiseLDR.PWLDR(ldr)
+PiecewiseLDR.set_breakpoint!(model, demand, 2)
 optimize!(model)
 @show objective_value(model)
-
-C = value.(model.model.ext[:C])
-X = value.(model.model[:X])
 
 PiecewiseLDR.local_search!(model)
 optimize!(model)
 
 @show objective_value(model)
+@show PiecewiseLDR.get_decision(model, sell)
+@show PiecewiseLDR.get_decision(model, ret)
+@show PiecewiseLDR.get_decision(model, buy)
+
+@show PiecewiseLDR.get_decision(model, sell, demand)
+@show PiecewiseLDR.get_decision(model, ret, demand)
+@show PiecewiseLDR.get_decision(model, buy, demand)

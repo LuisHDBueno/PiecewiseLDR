@@ -441,6 +441,38 @@ function getindex(
     return getindex(model.model, indice)
 end
 
+function get_decision(
+    pwldr::PWLDR,
+    x::JuMP.VariableRef
+)
+    @assert !haskey(pwldr.uncertainty_to_distribution, x)
+    model = pwldr.ldr_model
+    var_to_column = model.ext[:_LDR_var_to_column]
+    column_to_canonical = model.ext[:_LDR_column_to_canonical]
+    i = column_to_canonical[var_to_column[x]]
+    return value(pwldr.model[:X][i,1])
+end
+
+function get_decision(
+    pwldr::PWLDR,
+    x::JuMP.VariableRef,
+    uncertainty_variable::JuMP.VariableRef
+)
+    @assert !haskey(pwldr.uncertainty_to_distribution, x)
+    @assert haskey(pwldr.uncertainty_to_distribution, uncertainty_variable)
+    model = pwldr.ldr_model
+    var_to_column = model.ext[:_LDR_var_to_column]
+    column_to_canonical = model.ext[:_LDR_column_to_canonical]
+    i = column_to_canonical[var_to_column[x]]
+    j_idx, _ = pwldr.uncertainty_to_distribution[uncertainty_variable]
+    j_init = 1 + j_idx + sum(pwldr.n_segments_vec[1:j_idx - 1])
+    j_end = j_init + pwldr.n_segments_vec[j_idx] - 1
+    return (
+        breakpoints = pwldr.PWVR_list[j_idx].η_vec,
+        decision_vec = value.(pwldr.model[:X][i, j_init:j_end])
+    )
+end
+
 """
     _segments_number(
         ldr_model::LinearDecisionRules.LDRModel;
