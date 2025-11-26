@@ -214,9 +214,9 @@ function sp_gen_metadata(
     n_products = 5
     n_clients = size(dist_list, 1)
 
-    prod_cost_1 = rand(Uniform(50, 100), n_products)
-    prod_cost_2 = prod_cost_1 .+ rand(Uniform(75, 100), n_products)
-    client_cost = rand(Uniform(25, 50), n_products, n_clients)
+    prod_cost_1 = rand(Uniform(75, 100), n_products)
+    prod_cost_2 = prod_cost_1 .* 2
+    client_cost = rand(Uniform(30, 50), n_products, n_clients)
 
     demand_dist = shuffle(dist_list)
 

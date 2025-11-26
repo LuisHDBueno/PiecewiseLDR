@@ -277,7 +277,7 @@ function nfa_gen_metadata(
         op_cost_dists[i, :] = shuffle(dist_list_adapt_costs)
     end
 
-    invest_cost = rand(Uniform(500, 1000), n_warehouses)
+    invest_cost = rand(Uniform(500, 750), n_warehouses)
     penalty_cost = fill(1500, n_customers)
     efficiency = rand(Uniform(1, 1.25), n_warehouses, n_customers)
 

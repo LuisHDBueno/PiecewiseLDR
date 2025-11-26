@@ -37,7 +37,9 @@ function vector_representation(
     V_A = zeros(5)
     
     for line in size(A, 1)
-        V_A .+= values(get_statistics(Vector(A[line,1:end])))
+        a_i = Vector(A[line,1:end])
+        a_i = a_i / maximum(a_i)
+        V_A .+= values(get_statistics(a_i))
     end
     V_A = V_A / size(A, 1)
 
@@ -54,8 +56,12 @@ function vector_representation(
     for _ in 1:n_samples
         sample = rand(dist)
         ξ[dist_idx] = sample
-        V_B .+= values(get_statistics(B * ξ))
-        V_C .+= values(get_statistics(C * ξ))
+        b = values(get_statistics(B * ξ))
+        b = b ./ maximum(b)
+        V_B .+= 
+        c = values(get_statistics(C * ξ))
+        c = c ./ maximum(c)
+        V_C .+= c
     end
 
     V_B = V_B/n_samples

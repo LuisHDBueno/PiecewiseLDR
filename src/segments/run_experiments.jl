@@ -67,7 +67,8 @@ function get_data(
         idx_p = Int[],
         metric = String[],
         value = Float64[],
-        time = Float64[]
+        time = Float64[],
+        first_stage_decision = String[]
     )
 
     vector_cols = [Symbol("v$i") for i in 1:15]
@@ -100,52 +101,68 @@ function get_data(
         std = problem_setup.std(problem)
         end_time = time()
         push!(regular_metrics, (idx_p = idx_p, value = std.objective_value,
-                                metric ="obj_std", time = end_time - init_time))
+                                metric ="obj_std", time = end_time - init_time,
+                                first_stage_decision = string(std.first_stage_decision)),
+                                promote = true)
 
         init_time = time()
         reoptm_std = problem_setup.second_stage(std, problem.samples_test)
         end_time = time()
         push!(regular_metrics, (idx_p = idx_p, value = reoptm_std,
-                                metric = "reopt_std", time = end_time - init_time))
+                                metric = "reopt_std", time = end_time - init_time,
+                                first_stage_decision = ""),
+                                promote = true)
 
         # Determinist Model
         init_time = time()
         deterministic = problem_setup.deterministic(problem)
         end_time = time()
         push!(regular_metrics, (idx_p = idx_p, value = deterministic.objective_value,
-                                metric = "deterministic", time = end_time - init_time))
+                                metric = "deterministic", time = end_time - init_time,
+                                first_stage_decision = string(deterministic.first_stage_decision)),
+                                promote = true)
 
         init_time = time()
         reoptm_deterministic = problem_setup.second_stage(deterministic, problem.samples_test)
         end_time = time()                       
         push!(regular_metrics, (idx_p = idx_p, value = reoptm_deterministic,
-                                metric = "reopt_deterministic", time = end_time - init_time))
+                                metric = "reopt_deterministic", time = end_time - init_time,
+                                first_stage_decision = ""),
+                                promote = true)
 
         # Wait-and-see
         init_time = time()
         ws = problem_setup.ws(problem)
         end_time = time()
         push!(regular_metrics, (idx_p = idx_p, value = ws,
-                                metric = "ws", time = end_time - init_time))
+                                metric = "ws", time = end_time - init_time,
+                                first_stage_decision = ""),
+                                promote = true)
 
         # LDR
         init_time = time()
         ldr_model = problem_setup.ldr(problem)
         end_time = time()
         push!(regular_metrics, (idx_p = idx_p, value = ldr_model.objective_value,
-                                metric = "obj_ldr", time = end_time - init_time))
+                                metric = "obj_ldr", time = end_time - init_time,
+                                first_stage_decision = string(ldr_model.first_stage_decision)),
+                                promote = true)
 
         init_time = time()
         reoptm_ldr = problem_setup.second_stage(ldr_model, problem.samples_test)
         end_time = time()
         push!(regular_metrics, (idx_p = idx_p, value = reoptm_ldr,
-                                metric = "reopt_ldr", time = end_time - init_time))
+                                metric = "reopt_ldr", time = end_time - init_time,
+                                first_stage_decision = ""),
+                                promote = true)
 
         init_time = time()
         dr_ldr = dr_ldr_calc(ldr_model.model, problem.samples_test)
         end_time = time()
         push!(regular_metrics, (idx_p = idx_p, value = dr_ldr,
-                                metric = "dr_ldr", time = end_time - init_time))
+                                metric = "dr_ldr", time = end_time - init_time,
+                                first_stage_decision = ""),
+                                promote = true)
 
         name = problem_setup.name
         CSV.write("data/$(name)_regular_metrics.csv", regular_metrics)
@@ -235,6 +252,6 @@ dist_list = [
     truncated(Normal(50, 40), 10, 90)
 ]
 
-get_data(ShipmentPlanningSetup, dist_list, 10, 200, 2000, 3, HiGHS.Optimizer)
-get_data(CapacityExpansionSetup, dist_list, 10, 200, 2000, 3, HiGHS.Optimizer)
-get_data(NetworkFlowAllocationSetup, dist_list, 10, 200, 2000, 3, HiGHS.Optimizer)
+get_data(ShipmentPlanningSetup, dist_list, 10, 200, 2000, 30, HiGHS.Optimizer)
+get_data(CapacityExpansionSetup, dist_list, 10, 200, 2000, 30, HiGHS.Optimizer)
+get_data(NetworkFlowAllocationSetup, dist_list, 10, 200, 2000, 30, HiGHS.Optimizer)

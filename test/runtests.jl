@@ -11,6 +11,8 @@ using .PiecewiseLDR
 
 include("../src/segments/train_problems/problem_setup.jl")
 include("../src/segments/train_problems/shipment_planning.jl")
+include("../src/segments/train_problems/capacity_expansion.jl")
+include("../src/segments/train_problems/network_flow_allocation.jl")
 
 using Test
 
@@ -420,6 +422,126 @@ function test_shipment_planing()
     optimize!(pwldr)
     pwldr_opt = objective_value(pwldr)
     @test ws <= pwldr_opt <= pwldr_uni < ldr_obj
+
+    # Test implementation
+    linear_decision_rules = ldr_model.model
+    for (idx_v, variable) in enumerate(keys(linear_decision_rules.cache_model.uncertainty_to_distribution))
+        LinearDecisionRules.set_attribute(
+            variable,
+            LinearDecisionRules.BreakPoints(),
+            2,)
+    end
+    optimize!(linear_decision_rules)
+    obj_linear_decision_rules = objective_value(linear_decision_rules)
+    @test isapprox(obj_linear_decision_rules, pwldr_uni; atol=1e-6)
+end
+
+function test_capacity_expansion()
+    # Parameters
+    optimizer = HiGHS.Optimizer
+    setup = CapacityExpansionSetup
+    dist_list = [
+                    Uniform(10, 90),
+                    truncated(Normal(50, 15), 10, 90),
+                    MixtureModel([
+                        truncated(Normal(30, 8), 10, 90),
+                        truncated(Normal(70, 8), 10, 90)
+                    ]),
+                    truncated(Normal(50, 40), 10, 90)
+                ]
+    n_samples_train = 100
+    n_samples_test = 1000
+    problem = setup.gen_metadata(dist_list, n_samples_train,
+                                            n_samples_test, optimizer)
+    std = setup.std(problem)
+    reoptm_std = setup.second_stage(std, problem.samples_test)
+
+    deterministic = setup.deterministic(problem)
+    reoptm_deterministic = setup.second_stage(deterministic, problem.samples_test)
+
+    ws = setup.ws(problem)
+
+    @test ws <= reoptm_std <= reoptm_deterministic
+
+    ldr_model = setup.ldr(problem)
+    ldr_obj = ldr_model.objective_value
+
+    pwldr = PiecewiseLDR.PWLDR(ldr_model.model)
+    for (idx_v, variable) in enumerate(keys(pwldr.uncertainty_to_distribution))
+        PiecewiseLDR.set_breakpoint!(pwldr, variable, 2)
+    end
+    optimize!(pwldr)
+    pwldr_uni = objective_value(pwldr)
+    PiecewiseLDR.local_search!(pwldr)
+    optimize!(pwldr)
+    pwldr_opt = objective_value(pwldr)
+    @test ws <= pwldr_opt <= pwldr_uni < ldr_obj
+
+    # Test implementation
+    linear_decision_rules = ldr_model.model
+    for (idx_v, variable) in enumerate(keys(linear_decision_rules.cache_model.uncertainty_to_distribution))
+        LinearDecisionRules.set_attribute(
+            variable,
+            LinearDecisionRules.BreakPoints(),
+            2,)
+    end
+    optimize!(linear_decision_rules)
+    obj_linear_decision_rules = objective_value(linear_decision_rules)
+    @test isapprox(obj_linear_decision_rules, pwldr_uni; atol=1e-6)
+end
+
+function test_network_flow_allocation()
+    # Parameters
+    optimizer = HiGHS.Optimizer
+    setup = NetworkFlowAllocationSetup
+    dist_list = [
+                    Uniform(10, 90),
+                    truncated(Normal(50, 15), 10, 90),
+                    MixtureModel([
+                        truncated(Normal(30, 8), 10, 90),
+                        truncated(Normal(70, 8), 10, 90)
+                    ]),
+                    truncated(Normal(50, 40), 10, 90)
+                ]
+    n_samples_train = 100
+    n_samples_test = 1000
+    problem = setup.gen_metadata(dist_list, n_samples_train,
+                                            n_samples_test, optimizer)
+    std = setup.std(problem)
+    reoptm_std = setup.second_stage(std, problem.samples_test)
+
+    deterministic = setup.deterministic(problem)
+    reoptm_deterministic = setup.second_stage(deterministic, problem.samples_test)
+
+    ws = setup.ws(problem)
+
+    @test ws <= reoptm_std <= reoptm_deterministic
+
+    ldr_model = setup.ldr(problem)
+    ldr_obj = ldr_model.objective_value
+
+    pwldr = PiecewiseLDR.PWLDR(ldr_model.model)
+    for (idx_v, variable) in enumerate(keys(pwldr.uncertainty_to_distribution))
+        PiecewiseLDR.set_breakpoint!(pwldr, variable, 2)
+    end
+    optimize!(pwldr)
+    pwldr_uni = objective_value(pwldr)
+    PiecewiseLDR.local_search!(pwldr)
+    optimize!(pwldr)
+    pwldr_opt = objective_value(pwldr)
+    @test ws <= pwldr_opt <= pwldr_uni < ldr_obj
+
+    # Test implementation
+    linear_decision_rules = ldr_model.model
+    for (idx_v, variable) in enumerate(keys(linear_decision_rules.cache_model.uncertainty_to_distribution))
+        LinearDecisionRules.set_attribute(
+            variable,
+            LinearDecisionRules.BreakPoints(),
+            2,)
+    end
+    optimize!(linear_decision_rules)
+    obj_linear_decision_rules = objective_value(linear_decision_rules)
+    @test isapprox(obj_linear_decision_rules, pwldr_uni; atol=1e4)
 end
 
 #End Module
