@@ -19,7 +19,7 @@ function local_search!(
     value = _evaluate_local_search(pwldr_model, sense)
 
     weight_vec = Vector{Vector{Float64}}()
-    for pwvr in pwldr_model.PWVR_list
+    for pwvr in pwldr_model.PWRV_list
         push!(weight_vec, pwvr.weight)
     end
 
@@ -31,7 +31,7 @@ function local_search!(
         
         improved = false
 
-        for (index, pwvr) in enumerate(pwldr_model.PWVR_list)
+        for (index, pwvr) in enumerate(pwldr_model.PWRV_list)
             step = 1/((pwvr.n_breakpoints + 1) * 10)
             weight = pwvr.weight
             for i in 1:(pwvr.n_breakpoints + 1)

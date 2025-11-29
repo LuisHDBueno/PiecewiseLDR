@@ -30,7 +30,7 @@ function vector_representation(
 )
 
     dist_idx, inner_idx = pwldr.uncertainty_to_distribution[variable]
-    dist = pwldr.PWVR_list[dist_idx].distribution
+    dist = pwldr.PWRV_list[dist_idx].distribution
     ABC = pwldr.ldr_model.ext[:_LDR_ABC]
 
     A = vcat(ABC.Au, ABC.Al, ABC.Ae)
@@ -47,7 +47,7 @@ function vector_representation(
     C = ABC.C
 
     ξ = [1.0]
-    for pwvr in pwldr.PWVR_list
+    for pwvr in pwldr.PWRV_list
         push!(ξ, rand(pwvr.distribution))
     end
 
@@ -79,7 +79,7 @@ function vector_representation(
     dist_list = []
     for var in variable_list
         dist_idx, inner_idx = pwldr.uncertainty_to_distribution[variable]
-        dist = pwldr.PWVR_list[dist_idx].distribution
+        dist = pwldr.PWRV_list[dist_idx].distribution
         push!(dist_list, (idx = dist_idx, distribution = dist))
     end
     ABC = pwldr.ldr_model.ext[:_LDR_ABC]
@@ -96,7 +96,7 @@ function vector_representation(
     C = ABC.C
 
     ξ = [1.0]
-    for pwvr in pwldr.PWVR_list
+    for pwvr in pwldr.PWRV_list
         push!(ξ, rand(pwvr.distribution))
     end
 

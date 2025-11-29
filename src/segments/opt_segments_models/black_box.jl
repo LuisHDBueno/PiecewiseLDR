@@ -5,7 +5,7 @@ function _evaluate_segments(
 
     weight_vec = Vector{Vector{Float64}}()
     weight_index = 1
-    for i in 1:length(pwldr_model.PWVR_list)
+    for i in 1:length(pwldr_model.PWRV_list)
         push!(weight_vec,
             weights_limits_list[weight_index:weight_index + Int(pwldr_model.n_segments_vec[i] - 1)]
             )

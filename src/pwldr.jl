@@ -6,7 +6,7 @@
     # Fields
     - model::JuMP.Model: JuMP model at the piecewise form
     - ldr_model::LinearDecisionRules.LDRModel: Original LDR model
-    - PWVR_list::Vector{PWVR}: List of existing piecewise variables
+    - PWRV_list::Vector{PWVR}: List of existing piecewise variables
     - n_segments_vec::Vector{Int}: Vector of number of segments for each
         variable
     - W_constraints::Dict{Symbol, Matrix{JuMP.ConstraintRef}}: W matrix
@@ -20,7 +20,7 @@
 mutable struct PWLDR
     model::JuMP.Model
     ldr_model::LinearDecisionRules.LDRModel
-    PWVR_list::Vector{PWVR}
+    PWRV_list::Vector{PWVR}
     n_segments_vec::Vector{Int}
     W_constraints::Dict{Symbol, Matrix{JuMP.ConstraintRef}}
     h_constraints::Dict{Symbol, Vector{JuMP.ConstraintRef}}
@@ -82,7 +82,7 @@ function flatten_distributions_in_order(
 end
 
 """
-    _build_init_pwvr_list(
+    _build_init_PWRV_list(
         n_segments_vec::Vector{Int},
         η_min::Vector{Float64},
         η_max::Vector{Float64},
@@ -102,23 +102,23 @@ end
     # Returns
     ::Vector{PWVR}: Vector of piecewise random variables
 """
-function _build_init_pwvr_list(
+function _build_init_PWRV_list(
     n_segments_vec::Vector{Int},
     η_min::Vector{Float64},
     η_max::Vector{Float64},
     distribution_vec::Vector{Distribution}
 )
-    pwvr_list = Vector{PWVR}()
+    PWRV_list = Vector{PWVR}()
     for i in 1:length(η_min)
         n = n_segments_vec[i]
-        push!(pwvr_list,
+        push!(PWRV_list,
                 PWVR(truncated(distribution_vec[i], η_min[i], η_max[i]),
                         η_min[i],
                         η_max[i],
                         fill(1/n, Int(n)))
                 )
     end
-    return pwvr_list
+    return PWRV_list
 end
 
 """
@@ -149,7 +149,7 @@ function _build_problem!(
     η_max = ABC.ub
 
     distribution_vec = flatten_distributions_in_order(ldr_model)
-    pwvr_list = _build_init_pwvr_list(n_segments_vec, η_min, η_max, distribution_vec)
+    PWRV_list = _build_init_PWRV_list(n_segments_vec, η_min, η_max, distribution_vec)
 
     # Model Init
     model = JuMP.Model(ldr_model.solver)
@@ -173,8 +173,8 @@ function _build_problem!(
     #Reference each W dependent constraint                        
     W_constraints = Dict{Symbol, Matrix{JuMP.ConstraintRef}}()
     h_constraints = Dict{Symbol, Vector{JuMP.ConstraintRef}}()
-    W = _build_W(n_segments_vec, pwvr_list)
-    h = _build_h(pwvr_list)
+    W = _build_W(n_segments_vec, PWRV_list)
+    h = _build_h(PWRV_list)
     nW = size(W, 1)
 
     # Equality constraints
@@ -237,7 +237,7 @@ function _build_problem!(
     C  = _build_C(ABC.C, n_segments_vec)
 
     model.ext[:C] = C
-    M = _build_second_moment_matrix(n_segments_vec, pwvr_list)
+    M = _build_second_moment_matrix(n_segments_vec, PWRV_list)
 
     @expression(model, obj, LinearAlgebra.tr(C' * X * M))
 
@@ -250,7 +250,7 @@ function _build_problem!(
 
     # Fill pwldr struct
     pwldr.model = model
-    pwldr.PWVR_list = pwvr_list
+    pwldr.PWRV_list = PWRV_list
     pwldr.W_constraints = W_constraints
     pwldr.h_constraints = h_constraints
     pwldr.reset_model = false
@@ -355,12 +355,12 @@ function update_breakpoints!(
         end
     end
 
-    for i in 1:length(pwldr.PWVR_list)
-        update_breakpoints!(pwldr.PWVR_list[i], weight_vec[i])
+    for i in 1:length(pwldr.PWRV_list)
+        update_breakpoints!(pwldr.PWRV_list[i], weight_vec[i])
     end
 
-    W = _build_W(pwldr.n_segments_vec, pwldr.PWVR_list)
-    h = _build_h(pwldr.PWVR_list)
+    W = _build_W(pwldr.n_segments_vec, pwldr.PWRV_list)
+    h = _build_h(pwldr.PWRV_list)
 
     model = pwldr.model
 
@@ -410,7 +410,7 @@ function update_breakpoints!(
     X = model[:X]
     C = model.ext[:C]
 
-    M = _build_second_moment_matrix(pwldr.n_segments_vec, pwldr.PWVR_list)
+    M = _build_second_moment_matrix(pwldr.n_segments_vec, pwldr.PWRV_list)
 
     if model.ext[:sense] == MOI.MIN_SENSE
         @objective(model, Min, LinearAlgebra.tr(C' * X * M))
@@ -420,13 +420,13 @@ function update_breakpoints!(
 end
 
 function evaluate_sample(
-    PWVR_list,
+    PWRV_list,
     X,
     C,
     samples
 )
     ξ = [1.0]
-    for (pwvr, sp) in zip(PWVR_list, samples)
+    for (pwvr, sp) in zip(PWRV_list, samples)
         ξ_ext = sample_vector(pwvr, sp)
         append!(ξ, ξ_ext)
     end
@@ -468,7 +468,7 @@ function get_decision(
     j_init = 1 + j_idx + sum(pwldr.n_segments_vec[1:j_idx - 1])
     j_end = j_init + pwldr.n_segments_vec[j_idx] - 1
     return (
-        breakpoints = pwldr.PWVR_list[j_idx].η_vec,
+        breakpoints = pwldr.PWRV_list[j_idx].η_vec,
         decision_vec = value.(pwldr.model[:X][i, j_init:j_end])
     )
 end

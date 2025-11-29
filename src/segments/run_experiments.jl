@@ -32,7 +32,7 @@ function dr_pwldr_calc(pwldr, sample_list)
     X = value.(pwldr.model[:X])
     C = pwldr.model.ext[:C]
     for sample in sample_list
-        sum += PiecewiseLDR.evaluate_sample(pwldr.PWVR_list, X, C, sample)
+        sum += PiecewiseLDR.evaluate_sample(pwldr.PWRV_list, X, C, sample)
     end
     return sum/length(sample_list)
 end
@@ -177,7 +177,7 @@ function get_data(
             push!(pwldr_metadata,
                     (idx_p = idx_p,
                     idx_v = idx_v,
-                    variable = pwldr.PWVR_list[idx_v].distribution,
+                    variable = pwldr.PWRV_list[idx_v].distribution,
                     v_data...) , promote = true
                 )
             CSV.write("data/$(name)_pwldr_metadata.csv", pwldr_metadata)

@@ -173,7 +173,7 @@ function test_build_pwldr()
     @test isapprox(C_ldr, C_pwldr; atol=1e-6)
 
     M_ldr = ldr.ext[:_LDR_M]
-    M_pwldr = PiecewiseLDR._build_second_moment_matrix(pwldr.n_segments_vec, pwldr.PWVR_list)
+    M_pwldr = PiecewiseLDR._build_second_moment_matrix(pwldr.n_segments_vec, pwldr.PWRV_list)
     @test isapprox(M_ldr, M_pwldr; atol=1e-6)
 
 end
@@ -239,7 +239,7 @@ function test_update_breakpoints()
     @test isapprox(C_ldr, C_pwldr; atol=1e-6)
 
     M_ldr = ldr.ext[:_LDR_M]
-    M_pwldr = PiecewiseLDR._build_second_moment_matrix(pwldr.n_segments_vec, pwldr.PWVR_list)
+    M_pwldr = PiecewiseLDR._build_second_moment_matrix(pwldr.n_segments_vec, pwldr.PWRV_list)
     @test isapprox(M_ldr, M_pwldr; atol=1e-6)
 
 end

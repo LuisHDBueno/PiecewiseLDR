@@ -1,10 +1,10 @@
 """
     _build_second_moment_matrix(
         n_segments::Vector{Int},
-        PWVR_list::Vector{PWVR}
+        PWRV_list::Vector{PWVR}
     )
     
-    Build the second moment matrix associated to the PWVR_list
+    Build the second moment matrix associated to the PWRV_list
 
     # Arguments
     - n_segments::Vector{Int}: Vector that contains the number of segments
@@ -17,7 +17,7 @@
 """
 function _build_second_moment_matrix(
     n_segments::Vector{Int},
-    PWVR_list::Vector{PWVR}
+    PWRV_list::Vector{PWVR}
 )
 
     n_cols = Int(sum(n_segments)) + 1
@@ -27,7 +27,7 @@ function _build_second_moment_matrix(
 
     line_indices = Int[]
     line = 2
-    for pwvr in PWVR_list
+    for pwvr in PWRV_list
         μ = mean(pwvr)
         n = pwvr.n_breakpoints + 1
 
@@ -42,10 +42,10 @@ function _build_second_moment_matrix(
         line += n
     end
 
-    for i in 1:length(PWVR_list)-1
-        for j in i+1:length(PWVR_list)
-            pwvr_i = PWVR_list[i]
-            pwvr_j = PWVR_list[j]
+    for i in 1:length(PWRV_list)-1
+        for j in i+1:length(PWRV_list)
+            pwvr_i = PWRV_list[i]
+            pwvr_j = PWRV_list[j]
 
             lines_i = line_indices[i] : line_indices[i] + pwvr_i.n_breakpoints
             lines_j = line_indices[j] : line_indices[j] + pwvr_j.n_breakpoints

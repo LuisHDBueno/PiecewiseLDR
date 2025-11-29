@@ -56,7 +56,7 @@ end
 
 """
     _build_h(
-        PWVR_list::Vector{PWVR}
+        PWRV_list::Vector{PWVR}
     )
 
     Build right side vector for the restriction W η ≥ h
@@ -69,13 +69,13 @@ end
     ::Vector{Float64}: right side vector for the restriction W η ≥ h
 """
 function _build_h(
-    PWVR_list::Vector{PWVR}
+    PWRV_list::Vector{PWVR}
 )
     ub = Float64[]
     lb = Float64[]
     hu = Float64[]
 
-    for pwvr in PWVR_list
+    for pwvr in PWRV_list
         
         push!(lb, pwvr.η_vec[1])
         append!(lb, zeros(Float64, pwvr.n_breakpoints))
@@ -99,7 +99,7 @@ end
 """
     _build_W(
         n_segments::Vector{Int},
-        PWVR_list::Vector{PWVR}
+        PWRV_list::Vector{PWVR}
     )
 
     Build the W matrix for the restriction W η ≥ h at compact format
@@ -116,7 +116,7 @@ end
 """
 function _build_W(
     n_segments::Vector{Int},
-    PWVR_list::Vector{PWVR}
+    PWRV_list::Vector{PWVR}
 )
     dim_uncertainty = Int(sum(n_segments))
     
@@ -125,7 +125,7 @@ function _build_W(
     vals = Float64[]
     line = 1
     col = 1
-    for pwvr in PWVR_list
+    for pwvr in PWRV_list
         if (pwvr.n_breakpoints == 0)
             col += 1
             continue

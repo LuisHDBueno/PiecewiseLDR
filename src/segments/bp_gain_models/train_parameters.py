@@ -1,67 +1,40 @@
 import pandas as pd
 import numpy as np
+import json
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error
 
-def add_metrics_to_df(df_rm, df_md, df_pwldr):
-    # Add nb = 0 to pwldr dataframe
-    df1_unique = df_pwldr[['idx_p', 'idx_v', 'displace_func']].drop_duplicates()
-    df_rm['metric'] = df_rm['metric'].str.replace('_ldr', '_pwldr')
-    df_rm_filter = df_rm[df_rm["metric"].isin(["obj_pwldr", "reopt_pwldr", "dr_pwldr"])]
-    new_lines = pd.merge(df1_unique, df_rm_filter, on='idx_p')
-
-    new_lines['nb'] = 0
-    new_lines['time_uni'] = 0
-    new_lines['time_opt'] = 0
-    new_lines['value_uni'] = new_lines['value']
-    new_lines['value_opt'] = new_lines['value']
-
-    new_lines = new_lines.drop(columns=['value'])
-    new_lines = new_lines[df_pwldr.columns]
-
-    df_pwldr = pd.concat([df_pwldr, new_lines], ignore_index=True)
-
+def add_metrics_to_df(df_rm:pd.DataFrame, df_md:pd.DataFrame, df_pwldr:pd.DataFrame):
     # Add RP, WS and EVPI to pwldr dataframe
     df_pivot = df_rm.pivot(
         index='idx_p', 
         columns='metric', 
         values='value'
     )
+    df_pwldr = df_pwldr[df_pwldr["displace_func"] == "local_search"]
+    df_pwldr = df_pwldr[df_pwldr["metric"] == "dr_pwldr"]
+    df_pwldr = df_pwldr[df_pwldr["nb"] == 1]
 
     df_pwldr["RP"] = df_pwldr['idx_p'].map(df_pivot['reopt_std'])
     df_pwldr["WS"] = df_pwldr['idx_p'].map(df_pivot['ws'])
+    df_pwldr["LDR"] = df_pwldr['idx_p'].map(df_pivot['dr_ldr'])
     df_pwldr["EVPI"] = df_pwldr["RP"] - df_pwldr["WS"]
+    df_pwldr["EVPI_nb_0"] = df_pwldr["LDR"] - df_pwldr["WS"]
+    df_pwldr["EVPI_DR"] = df_pwldr["value_opt"] - df_pwldr["WS"]
+    df_pwldr["Gain"] = (df_pwldr["EVPI_nb_0"] - df_pwldr["EVPI_DR"]) / df_pwldr["EVPI"]
 
     df_1 = pd.merge(df_pwldr, df_md, on=['idx_p', 'idx_v'], how='left')
-    df_1["gain"] = - (df_1["value_opt"] - df_1["value_uni"]) / df_1["EVPI"]
 
-    df_1 = df_1[df_1["displace_func"] == "local_search"]
-    df_1 = df_1[df_1["metric"] == "obj_pwldr"]
-
-    df_baseline = df_1[df_1['nb'] == 0][[
-        'idx_p', 'idx_v', 'value_opt'
-    ]]
-
-    df_baseline = df_baseline.rename(columns={
-        'value_opt': 'value_opt_nb0',
-    })
-    df_1 = pd.merge(
-        df_1,
-        df_baseline,
-        on=['idx_p', 'idx_v'],
-        how='left'
-    )
-    df_1['gain'] = (df_1['value_opt_nb0'] - df_1['value_opt']) / (df_1['EVPI'])
-    df_final = df_1[["idx_p","idx_v","nb","gain","variable",
+    df_final = df_1[["idx_p","idx_v","nb","Gain","variable",
                  "v1","v2","v3","v4","v5","v6","v7","v8",
                  "v9","v10","v11","v12","v13","v14","v15"]]
 
     return df_final
 
 def merge_df(list_df):
-    max_idx = max(list_df[1]["idx_p"])
+    max_idx = max(list_df[0]["idx_p"])
 
-    df_final = list_df[1]
+    df_final = list_df[0]
     for df in list_df[1:]:
         max_idx_df = max(df["idx_p"])
         df["idx_p"] += max_idx
@@ -72,97 +45,132 @@ def merge_df(list_df):
     return df_final
 
 def open_data():
-    sp_regular_metrics = "data/shipment_planning_regular_metrics.csv"
-    sp_metadata = "data/shipment_planning_pwldr_metadata.csv"
-    sp_pwldr = "data/shipment_planning_pwldr_metrics.csv"
+    sp_regular_metrics = "../../../data/shipment_planning_regular_metrics.csv"
+    sp_metadata = "../../../data/shipment_planning_pwldr_metadata.csv"
+    sp_pwldr = "../../../data/shipment_planning_pwldr_metrics.csv"
 
     sp_df_rm = pd.read_csv(sp_regular_metrics)
     sp_df_md = pd.read_csv(sp_metadata)
     sp_df_pwldr = pd.read_csv(sp_pwldr)
 
-    df_md_fixed = sp_df_md[["idx_p","idx_v","variable", "v5", "v10", "v15"]]
-    df_md_fixed['variable'] = df_md_fixed['variable'].str.replace('Truncated{', '')
-    df_md_fixed['variable'] = df_md_fixed['variable'].str.split('{').str[0]
-
-    df_md_fixed['v_sum'] = df_md_fixed['v5'] + df_md_fixed['v10'] + df_md_fixed['v15']
-    df_md_fixed['max_v_sum'] = df_md_fixed.groupby('idx_p')['v_sum'].transform('max')
-
-    is_normal = df_md_fixed['variable'] == 'Normal'
-    is_max_sum = df_md_fixed['v_sum'] == df_md_fixed['max_v_sum']
-
-    df_md_fixed.loc[is_normal & is_max_sum, 'variable'] = 'Normal(50, 40)'
-    df_md_fixed.loc[is_normal & ~is_max_sum, 'variable'] = 'Normal(50, 15)'
-
-    sp_df_md["variable"] = df_md_fixed['variable']
-
-    ce_regular_metrics = "data/capacity_expansion_regular_metrics.csv"
-    ce_metadata = "data/capacity_expansion_pwldr_metadata.csv"
-    ce_pwldr = "data/capacity_expansion_pwldr_metrics.csv"
+    ce_regular_metrics = "../../../data/capacity_expansion_regular_metrics.csv"
+    ce_metadata = "../../../data/capacity_expansion_pwldr_metadata.csv"
+    ce_pwldr = "../../../data/capacity_expansion_pwldr_metrics.csv"
 
     ce_df_rm = pd.read_csv(ce_regular_metrics)
     ce_df_md = pd.read_csv(ce_metadata)
     ce_df_pwldr = pd.read_csv(ce_pwldr)
 
-    df_md_fixed = ce_df_md[["idx_p","idx_v","variable", "v5", "v10", "v15"]]
-    df_md_fixed['variable'] = df_md_fixed['variable'].str.replace('Truncated{', '')
-    df_md_fixed['variable'] = df_md_fixed['variable'].str.split('{').str[0]
+    nf_regular_metrics = "../../../data/capacity_expansion_regular_metrics.csv"
+    nf_metadata = "../../../data/capacity_expansion_pwldr_metadata.csv"
+    nf_pwldr = "../../../data/capacity_expansion_pwldr_metrics.csv"
 
-    df_md_fixed['v_sum'] = df_md_fixed['v5'] + df_md_fixed['v10'] + df_md_fixed['v15']
-    df_md_fixed['v_sum_rank'] = df_md_fixed.groupby('idx_p')['v_sum'].rank(ascending=False, method='first')
+    nf_df_rm = pd.read_csv(nf_regular_metrics)
+    nf_df_md = pd.read_csv(nf_metadata)
+    nf_df_pwldr = pd.read_csv(nf_pwldr)
 
-    is_normal = df_md_fixed['variable'] == 'Normal'
-    is_top_2_sum = df_md_fixed['v_sum_rank'] <= 2 
-
-    df_md_fixed.loc[is_normal & is_top_2_sum, 'variable'] = 'Normal(50, 40)'
-    df_md_fixed.loc[is_normal & ~is_top_2_sum, 'variable'] = 'Normal(50, 15)'
-
-    ce_df_md["variable"] = df_md_fixed['variable']
-
-    df_ce = add_metrics_to_df(ce_df_rm, ce_df_md, ce_df_pwldr)
     df_sp = add_metrics_to_df(sp_df_rm, sp_df_md, sp_df_pwldr)
-    df_final = merge_df([df_ce, df_sp])
-    return df_final
+    df_ce = add_metrics_to_df(ce_df_rm, ce_df_md, ce_df_pwldr)
+    df_nf = add_metrics_to_df(nf_df_rm, nf_df_md, nf_df_pwldr)
+    return merge_df([df_sp, df_ce, df_nf])
 
-def fit_regression(df:pd.DataFrame):
-    X = df[[f'v{i}' for i in range(1, 16)]]
-    y = df['gain']
+def fit_regression(df: pd.DataFrame):
+    X = df[[f'v{i}' for i in range(1, 16)]].copy()
+    y = df['Gain'].to_numpy()
 
+    # Remove colunas sem variância
     variances = X.var()
-    valid_columns = variances[variances > 0].index
-    X = X[valid_columns]
+    X = X[variances[variances > 0].index]
+
+    # Normalização
+    X_mean = X.mean() # Média do treino
+    X_std = X.std()   # Desvio padrão do treino
+
+    # Normalização
+    X = (X - X_mean) / X_std
+
     X = X.to_numpy()
+
+    # Adiciona intercepto
+    X = np.column_stack([np.ones(len(X)), X])
+
     coef, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
 
-    calculated_coefs = pd.Series(coef, index=valid_columns)
-    all_v = [f'v{i}' for i in range(1, 16)]
-    full_coefs = calculated_coefs.reindex(all_v, fill_value=0)
+    feature_names = ['intercept'] + list(variances[variances > 0].index)
+    coef = pd.Series(coef, index=feature_names)
 
-    return full_coefs
+    return coef, X_mean, X_std
 
-def train_model():
+def train_model(test_size=0.2, random_state=42, save_path="model_params.json"):
     df = open_data()
-    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
-    
-    print(f"Total de dados: {len(df)}")
-    print(f"Dados de Treino: {len(train_df)}")
-    print(f"Dados de Teste: {len(test_df)}")
-    print("-" * 30)
+    X = df[[f'v{i}' for i in range(1, 16)]].copy()
+    y = df['Gain'].to_numpy()
 
-    coef_series = fit_regression(train_df)
+    variances = X.var()
+    X = X[variances[variances > 0].index]
 
-    # Create columns
-    X_test = test_df[[f'v{i}' for i in range(1, 16)]].copy()
-    y_test = test_df['gain']
-        
-    X_test = X_test[coef_series.index]
-    predictions = X_test @ coef_series
-    r2 = r2_score(y_test, predictions)
-    rmse = np.sqrt(mean_squared_error(y_test, predictions))
-    
-    print("Resultados da Avaliação no Conjunto de Teste:")
-    print(f"R² (R-squared): {r2:.4f}")
-    print(f"RMSE (Root Mean Squared Error): {rmse:.4f}")
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state
+    )
 
-    coef_series.to_json('src/segments/bp_gain_models/params.json', orient='values')
+    X_mean = X_train.mean()
+    X_std = X_train.std()
+
+    X_train = (X_train - X_mean) / X_std
+    X_test = (X_test - X_mean) / X_std
+
+    X_train = X_train.to_numpy()
+    X_test = X_test.to_numpy()
+
+    X_train = np.column_stack([np.ones(len(X_train)), X_train])
+    X_test = np.column_stack([np.ones(len(X_test)), X_test])
+
+    coef, _, _, _ = np.linalg.lstsq(X_train, y_train, rcond=None)
+
+    feature_names = ['intercept'] + list(variances[variances > 0].index)
+    coef_series = pd.Series(coef, index=feature_names)
+
+    y_train_pred = X_train @ coef
+    y_test_pred = X_test @ coef
+
+    r2_train = r2_score(y_train, y_train_pred)
+    r2_test = r2_score(y_test, y_test_pred)
+
+    rmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred))
+    rmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred))
+
+    mae_train = np.mean(np.abs(y_train - y_train_pred))
+    mae_test = np.mean(np.abs(y_test - y_test_pred))
+
+    metrics = {
+        "train": {
+            "r2": r2_train,
+            "rmse": rmse_train,
+            "mae": mae_train
+        },
+        "test": {
+            "r2": r2_test,
+            "rmse": rmse_test,
+            "mae": mae_test
+        }
+    }
+
+    model_params = {
+        "coefficients": coef_series.to_dict(),
+        "mean": X_mean.to_dict(),
+        "std": X_std.to_dict(),
+        "features": list(X_mean.index),
+        "metrics": metrics
+    }
+
+    with open(save_path, "w") as f:
+        json.dump([model_params], f, indent=4)
+
+    print("Modelo treinado com sucesso!")
+    print("Métricas de Teste:")
+    for k, v in metrics["test"].items():
+        print(f"{k}: {v:.6f}")
+
+    return coef_series, metrics
 
 train_model()
