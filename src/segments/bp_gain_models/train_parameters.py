@@ -13,7 +13,6 @@ def add_metrics_to_df(df_rm:pd.DataFrame, df_md:pd.DataFrame, df_pwldr:pd.DataFr
     )
     df_pwldr = df_pwldr[df_pwldr["displace_func"] == "local_search"]
     df_pwldr = df_pwldr[df_pwldr["metric"] == "dr_pwldr"]
-    df_pwldr = df_pwldr[df_pwldr["nb"] == 1]
 
     df_pwldr["RP"] = df_pwldr['idx_p'].map(df_pivot['reopt_std'])
     df_pwldr["WS"] = df_pwldr['idx_p'].map(df_pivot['ws'])
@@ -75,36 +74,64 @@ def open_data():
     return merge_df([df_sp, df_ce, df_nf])
 
 def fit_regression(df: pd.DataFrame):
-    X = df[[f'v{i}' for i in range(1, 16)]].copy()
-    y = df['Gain'].to_numpy()
+    V = df[[f'v{i}' for i in range(1, 16)]].copy()
+    k = df["nb"].to_numpy().reshape(-1, 1)
+    y = df["Gain"].to_numpy()
 
-    # Remove colunas sem variância
+    V_inter = V.to_numpy() * k
+
+    X = np.hstack([
+        V.to_numpy(),
+        k,
+        V_inter
+    ])
+
+    feature_names = (
+        [f"v{i}" for i in range(1, 16)] +
+        ["k"] +
+        [f"v{i}_k" for i in range(1, 16)]
+    )
+
+    X = pd.DataFrame(X, columns=feature_names)
     variances = X.var()
     X = X[variances[variances > 0].index]
 
-    # Normalização
-    X_mean = X.mean() # Média do treino
-    X_std = X.std()   # Desvio padrão do treino
-
-    # Normalização
+    X_mean = X.mean()
+    X_std = X.std()
     X = (X - X_mean) / X_std
 
     X = X.to_numpy()
-
-    # Adiciona intercepto
     X = np.column_stack([np.ones(len(X)), X])
 
     coef, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
 
-    feature_names = ['intercept'] + list(variances[variances > 0].index)
+    feature_names = ["intercept"] + list(X_mean.index)
     coef = pd.Series(coef, index=feature_names)
 
     return coef, X_mean, X_std
 
 def train_model(test_size=0.2, random_state=42, save_path="model_params.json"):
     df = open_data()
-    X = df[[f'v{i}' for i in range(1, 16)]].copy()
-    y = df['Gain'].to_numpy()
+    
+    V = df[[f'v{i}' for i in range(1, 16)]].copy()
+    k = df["nb"].to_numpy().reshape(-1, 1)
+    y = df["Gain"].to_numpy()
+
+    V_inter = V.to_numpy() * k
+
+    X = np.hstack([
+        V.to_numpy(),
+        k,
+        V_inter
+    ])
+
+    feature_names = (
+        [f"v{i}" for i in range(1, 16)] +
+        ["k"] +
+        [f"v{i}_k" for i in range(1, 16)]
+    )
+
+    X = pd.DataFrame(X, columns=feature_names)
 
     variances = X.var()
     X = X[variances[variances > 0].index]
@@ -119,15 +146,12 @@ def train_model(test_size=0.2, random_state=42, save_path="model_params.json"):
     X_train = (X_train - X_mean) / X_std
     X_test = (X_test - X_mean) / X_std
 
-    X_train = X_train.to_numpy()
-    X_test = X_test.to_numpy()
-
-    X_train = np.column_stack([np.ones(len(X_train)), X_train])
-    X_test = np.column_stack([np.ones(len(X_test)), X_test])
+    X_train = np.column_stack([np.ones(len(X_train)), X_train.to_numpy()])
+    X_test = np.column_stack([np.ones(len(X_test)), X_test.to_numpy()])
 
     coef, _, _, _ = np.linalg.lstsq(X_train, y_train, rcond=None)
 
-    feature_names = ['intercept'] + list(variances[variances > 0].index)
+    feature_names = ["intercept"] + list(X_mean.index)
     coef_series = pd.Series(coef, index=feature_names)
 
     y_train_pred = X_train @ coef

@@ -18,6 +18,7 @@ end
 function get_bp_gain(
     pwldr::PWLDR,
     variable::JuMP.VariableRef;
+    k̂::Int = 1,
     n_samples::Int = 100
 )
     params = open_params()
@@ -28,13 +29,27 @@ function get_bp_gain(
     features = params.features
 
     V_full = vector_representation(pwldr, variable; n_samples)
-    V = [V_full[parse(Int, replace(f, "v" => ""))] for f in features]
-    V_norm = [(V[i] - mean[features[i]]) / std[features[i]] for i in eachindex(V)]
+    X = Float64[]
 
+    for f in features
+        if f == "k"
+            push!(X, k̂)
+
+        elseif occursin("_k", f)
+            idx = parse(Int, replace(replace(f, "_k" => ""), "v" => ""))
+            push!(X, V_full[idx] * k̂)
+
+        else
+            idx = parse(Int, replace(f, "v" => ""))
+            push!(X, V_full[idx])
+        end
+    end
+
+    X_norm = [(X[i] - mean[features[i]]) / std[features[i]] for i in eachindex(X)]
     ŷ = coef["intercept"]
 
-    for i in eachindex(V_norm)
-        ŷ += coef[features[i]] * V_norm[i]
+    for i in eachindex(X_norm)
+        ŷ += coef[features[i]] * X_norm[i]
     end
 
     return ŷ
