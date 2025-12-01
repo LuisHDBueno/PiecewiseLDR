@@ -17,8 +17,8 @@ end
 
 function get_bp_gain(
     pwldr::PWLDR,
-    variable::JuMP.VariableRef;
-    k̂::Int = 1,
+    variable::JuMP.VariableRef,
+    k̂::Int;
     n_samples::Int = 100
 )
     params = open_params()

@@ -377,7 +377,7 @@ function test_bp_gain()
     pwldr = PiecewiseLDR.PWLDR(ldr)
     optimize!(pwldr)
 
-    result = PiecewiseLDR.get_bp_gain(pwldr, demand)
+    result = PiecewiseLDR.get_bp_gain(pwldr, demand, 1)
     @show result
 end
 
